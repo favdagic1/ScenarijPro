@@ -238,7 +238,7 @@ body {
 
 .project-card.new-project:hover {
     border-color: #5B3FFF;
-    background-color: #f9fafb;
+    background-color: #f0f2f5;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
