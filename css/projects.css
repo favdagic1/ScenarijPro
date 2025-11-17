@@ -266,5 +266,19 @@ body {
 
     .projects-grid {
         grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .project-card {
+        width: 80%;
+    }
+
+    
+    .project-desc,
+    .project-details,
+    .active-badge {
+        display: none;
     }
 }
