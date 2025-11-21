@@ -157,24 +157,143 @@ let EditorTeksta = function (divRef) {
      * Vraća broj riječi (ukupno, boldiranih, italic)
      */
     let dajBrojRijeci = function () {
-        // Implementacija u sljedećem koraku
-        return { ukupno: 0, boldiranih: 0, italic: 0 };
+        let ukupno = 0;
+        let boldiranih = 0;
+        let italic = 0;
+
+        /**
+         * Rekurzivno prolazi kroz DOM i broji riječi
+         */
+        let obradiElement = function(element) {
+            for (let child of element.childNodes) {
+                if (child.nodeType === Node.TEXT_NODE) {
+                    // Text node - izdvoji riječi
+                    let tekst = child.textContent || '';
+                    let rijeci = tekst.trim().split(/\s+/);
+
+                    // Filtriraj riječi (bez brojeva, bez praznih)
+                    rijeci = rijeci.filter(rijec => {
+                        rijec = rijec.replace(/[,.]/g, '');
+                        return rijec.length > 0 && !/^\d+$/.test(rijec);
+                    });
+
+                    let brojRijeci = rijeci.length;
+
+                    if (brojRijeci === 0) continue;
+
+                    ukupno += brojRijeci;
+
+                    // Provjeri da li je parent element bold ili italic
+                    let parent = child.parentElement;
+
+                    // Da li je cijeli text node u bold tagu?
+                    if (parent && (parent.tagName === 'B' || parent.tagName === 'STRONG')) {
+                        // Provjeri da li je cijeli sadržaj parent elementa samo ovaj text node
+                        // (ne smije biti mješavina formatiranog i neformatiranog teksta)
+                        let roditeljTekst = parent.textContent || '';
+                        let ovajTekst = tekst.trim();
+
+                        // Ako je parent element sadrži samo ovaj tekst, onda su sve riječi boldirane
+                        if (roditeljTekst.trim() === ovajTekst) {
+                            boldiranih += brojRijeci;
+                        }
+                    }
+
+                    // Da li je cijeli text node u italic tagu?
+                    if (parent && (parent.tagName === 'I' || parent.tagName === 'EM')) {
+                        let roditeljTekst = parent.textContent || '';
+                        let ovajTekst = tekst.trim();
+
+                        if (roditeljTekst.trim() === ovajTekst) {
+                            italic += brojRijeci;
+                        }
+                    }
+                } else if (child.nodeType === Node.ELEMENT_NODE) {
+                    // Element node - rekurzivno obradi
+                    obradiElement(child);
+                }
+            }
+        };
+
+        obradiElement(editorDiv);
+
+        return { ukupno: ukupno, boldiranih: boldiranih, italic: italic };
     };
 
     /**
      * Vraća jedinstvene uloge
      */
     let dajUloge = function () {
-        // Implementacija u sljedećem koraku
-        return [];
+        let linije = dajLinije();
+        let uloge = [];
+
+        for (let i = 0; i < linije.length; i++) {
+            let trenutnaTekst = linije[i].tekst;
+            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
+
+            // Provjeri da li je ovo ime uloge
+            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst)) {
+                // Dodaj ulogu ako već nije u nizu
+                if (!uloge.includes(trenutnaTekst)) {
+                    uloge.push(trenutnaTekst);
+                }
+            }
+        }
+
+        return uloge;
     };
 
     /**
      * Detektuje potencijalno pogrešno napisane uloge
      */
     let pogresnaUloga = function () {
-        // Implementacija u sljedećem koraku
-        return [];
+        let linije = dajLinije();
+        let mapa = {}; // Mapa: ime uloge -> broj pojavljivanja
+
+        // Prebroji sve uloge
+        for (let i = 0; i < linije.length; i++) {
+            let trenutnaTekst = linije[i].tekst;
+            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
+
+            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst)) {
+                if (!mapa[trenutnaTekst]) {
+                    mapa[trenutnaTekst] = 0;
+                }
+                mapa[trenutnaTekst]++;
+            }
+        }
+
+        let imena = Object.keys(mapa);
+        let pogresne = [];
+
+        // Uporedi sve parove uloga
+        for (let i = 0; i < imena.length; i++) {
+            let imeA = imena[i];
+            let brojA = mapa[imeA];
+
+            for (let j = 0; j < imena.length; j++) {
+                if (i === j) continue;
+
+                let imeB = imena[j];
+                let brojB = mapa[imeB];
+
+                // Provjeri da li su slična imena
+                let distanca = levenshteinDistanca(imeA, imeB);
+                let maxDozvoljenaDistanca = (imeA.length > 5 && imeB.length > 5) ? 2 : 1;
+
+                if (distanca <= maxDozvoljenaDistanca) {
+                    // Provjeri da li se imeB pojavljuje znatno češće
+                    if (brojB >= 4 && (brojB - brojA) >= 3) {
+                        // imeA je potencijalno pogrešno
+                        if (!pogresne.includes(imeA)) {
+                            pogresne.push(imeA);
+                        }
+                    }
+                }
+            }
+        }
+
+        return pogresne;
     };
 
     /**
