@@ -185,6 +185,101 @@ body {
     color: #000000;
 }
 
+/* Kontrolna tabla za metode */
+.controls-panel {
+    background-color: white;
+    padding: 20px 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.controls-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.controls-group h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 5px;
+}
+
+.btn-control {
+    padding: 8px 16px;
+    background-color: #5B3FFF;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-control:hover {
+    background-color: #4829e6;
+}
+
+.btn-format-control {
+    padding: 8px 16px;
+    background-color: #28a745;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-format-control:hover {
+    background-color: #218838;
+}
+
+.input-uloga {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    background-color: #f9fafb;
+}
+
+.input-uloga:focus {
+    outline: none;
+    border-color: #5B3FFF;
+    background-color: white;
+}
+
+/* Div za poruke */
+.poruke-container {
+    background-color: white;
+    margin: 20px 24px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    min-height: 100px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: "Poppins", "Inter", sans-serif;
+    font-size: 14px;
+    color: #333333;
+    line-height: 1.6;
+}
+
+.poruke-container:empty::before {
+    content: "Rezultati će biti prikazani ovdje...";
+    color: #9ca3af;
+    font-style: italic;
+}
+
 /* Responzivnost */
 @media (max-width: 750px) {
     .content-wrapper {
@@ -208,5 +303,14 @@ body {
 
     .script-content {
         padding: 40px 30px;
+    }
+
+    .controls-panel {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .poruke-container {
+        margin: 20px 10px;
     }
 }
