@@ -300,8 +300,42 @@ let EditorTeksta = function (divRef) {
      * Vraća broj linija teksta za ulogu
      */
     let brojLinijaTeksta = function (uloga) {
-        // Implementacija u sljedećem koraku
-        return 0;
+        uloga = uloga.toUpperCase(); // Normalizuj na velika slova
+        let linije = dajLinije();
+        let ukupnoLinija = 0;
+
+        for (let i = 0; i < linije.length; i++) {
+            let trenutnaTekst = linije[i].tekst;
+            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
+
+            // Provjeri da li je ovo tražena uloga
+            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst) && trenutnaTekst === uloga) {
+                // Prebroji linije govora nakon imena uloge
+                let j = i + 1;
+                while (j < linije.length) {
+                    let linijaTekst = linije[j].tekst;
+
+                    // Prazna linija prekida blok
+                    if (linijaTekst === '') break;
+
+                    // Nova uloga prekida blok
+                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
+                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ)) break;
+
+                    // Naslov scene prekida blok
+                    if (jeLiNaslovScene(linijaTekst)) break;
+
+                    // Linija u zagradama se ne broji
+                    if (!jeLiLinijaUZagradama(linijaTekst)) {
+                        ukupnoLinija++;
+                    }
+
+                    j++;
+                }
+            }
+        }
+
+        return ukupnoLinija;
     };
 
     /**
