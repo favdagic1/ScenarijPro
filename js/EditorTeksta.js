@@ -342,8 +342,113 @@ let EditorTeksta = function (divRef) {
      * Vraća scenarij uloge sa kontekstom
      */
     let scenarijUloge = function (uloga) {
-        // Implementacija u sljedećem koraku
-        return [];
+        uloga = uloga.toUpperCase();
+        let linije = dajLinije();
+        let rezultat = [];
+
+        let trenutnaScena = '';
+        let sveReplike = [];
+        let sceneMapping = [];
+        let segmentGranice = new Set();
+
+        // Prvo prolazimo kroz sve linije i identifikujemo replike i granice
+        for (let i = 0; i < linije.length; i++) {
+            let tekst = linije[i].tekst;
+            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
+
+            // Ako je naslov scene
+            if (jeLiNaslovScene(tekst)) {
+                trenutnaScena = tekst;
+                // Naslov scene prekida dijalog-segment
+                if (sveReplike.length > 0) {
+                    segmentGranice.add(sveReplike.length);
+                }
+                continue;
+            }
+
+            // Ako je ime uloge
+            if (jeLiImeUloge(tekst, sljedecaTekst)) {
+                let imeUloge = tekst;
+                let linijeGovora = [];
+
+                // Sakupi sve linije govora
+                let j = i + 1;
+                while (j < linije.length) {
+                    let linijaTekst = linije[j].tekst;
+
+                    if (linijaTekst === '') break;
+
+                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
+                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ)) break;
+                    if (jeLiNaslovScene(linijaTekst)) break;
+
+                    linijeGovora.push(linijaTekst);
+                    j++;
+                }
+
+                sveReplike.push({
+                    uloga: imeUloge,
+                    linije: linijeGovora.join('\n')
+                });
+                sceneMapping.push(trenutnaScena);
+                i = j - 1;
+
+                // Provjeri da li slijedi akcijski segment ili nova scena
+                let nextIdx = j;
+                while (nextIdx < linije.length && linije[nextIdx].tekst === '') {
+                    nextIdx++;
+                }
+
+                if (nextIdx < linije.length) {
+                    let sljedeciTekst = linije[nextIdx].tekst;
+                    let sljedeciSljedeci = (nextIdx + 1 < linije.length) ? linije[nextIdx + 1].tekst : '';
+
+                    // Akcijski segment ili naslov scene prekidaju dijalog-segment
+                    if (!jeLiImeUloge(sljedeciTekst, sljedeciSljedeci) && sljedeciTekst !== '') {
+                        segmentGranice.add(sveReplike.length);
+                    }
+                }
+            }
+        }
+
+        // Sada pronadji sve pojave tražene uloge
+        for (let idx = 0; idx < sveReplike.length; idx++) {
+            if (sveReplike[idx].uloga === uloga) {
+                let scena = sceneMapping[idx];
+
+                // Izračunaj poziciju u sceni
+                let pozicijaUSceni = 1;
+                for (let k = 0; k < idx; k++) {
+                    if (sceneMapping[k] === scena) {
+                        pozicijaUSceni++;
+                    }
+                }
+
+                // Nađi prethodni i sljedeći u istom dijalog-segmentu
+                let prethodni = null;
+                let sljedeci = null;
+
+                // Provjeri da li postoji prethodni u istom segmentu i sceni
+                if (!segmentGranice.has(idx) && idx > 0 && sceneMapping[idx - 1] === scena) {
+                    prethodni = sveReplike[idx - 1];
+                }
+
+                // Provjeri da li postoji sljedeći u istom segmentu i sceni
+                if (!segmentGranice.has(idx + 1) && idx < sveReplike.length - 1 && sceneMapping[idx + 1] === scena) {
+                    sljedeci = sveReplike[idx + 1];
+                }
+
+                rezultat.push({
+                    scena: scena,
+                    pozicijaUTekstu: pozicijaUSceni,
+                    prethodni: prethodni,
+                    trenutni: sveReplike[idx],
+                    sljedeci: sljedeci
+                });
+            }
+        }
+
+        return rezultat;
     };
 
     /**
