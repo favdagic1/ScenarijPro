@@ -455,8 +455,119 @@ let EditorTeksta = function (divRef) {
      * Grupira uloge po dijalog-segmentima
      */
     let grupisiUloge = function () {
-        // Implementacija u sljedećem koraku
-        return [];
+        let linije = dajLinije();
+        let rezultat = [];
+
+        let trenutnaScena = '';
+        let segmentBrojPoSceni = {};
+        let trenutniSegment = [];
+
+        for (let i = 0; i < linije.length; i++) {
+            let tekst = linije[i].tekst;
+            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
+
+            // Ako je naslov scene
+            if (jeLiNaslovScene(tekst)) {
+                // Zatvori prethodni segment ako postoji
+                if (trenutniSegment.length > 0 && trenutnaScena !== '') {
+                    let uloge = [];
+                    trenutniSegment.forEach(ime => {
+                        if (!uloge.includes(ime)) {
+                            uloge.push(ime);
+                        }
+                    });
+
+                    if (uloge.length > 0) {
+                        let segmentBroj = segmentBrojPoSceni[trenutnaScena] || 0;
+                        segmentBroj++;
+                        segmentBrojPoSceni[trenutnaScena] = segmentBroj;
+
+                        rezultat.push({
+                            scena: trenutnaScena,
+                            segment: segmentBroj,
+                            uloge: uloge
+                        });
+                    }
+                }
+
+                trenutnaScena = tekst;
+                trenutniSegment = [];
+                continue;
+            }
+
+            // Ako je ime uloge
+            if (jeLiImeUloge(tekst, sljedecaTekst)) {
+                trenutniSegment.push(tekst);
+
+                // Provjeri da li slijedi akcijski segment
+                let j = i + 1;
+                while (j < linije.length) {
+                    let linijaTekst = linije[j].tekst;
+
+                    if (linijaTekst === '') {
+                        j++;
+                        continue;
+                    }
+
+                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
+
+                    // Ako je nova uloga ili naslov scene, nastavi dalje
+                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ) || jeLiNaslovScene(linijaTekst)) {
+                        break;
+                    }
+
+                    // Ako nije uloga, nije naslov scene i nije prazan - to je akcijski segment
+                    // Zatvori segment
+                    let uloge = [];
+                    trenutniSegment.forEach(ime => {
+                        if (!uloge.includes(ime)) {
+                            uloge.push(ime);
+                        }
+                    });
+
+                    if (uloge.length > 0) {
+                        let segmentBroj = segmentBrojPoSceni[trenutnaScena] || 0;
+                        segmentBroj++;
+                        segmentBrojPoSceni[trenutnaScena] = segmentBroj;
+
+                        rezultat.push({
+                            scena: trenutnaScena,
+                            segment: segmentBroj,
+                            uloge: uloge
+                        });
+                    }
+
+                    trenutniSegment = [];
+                    break;
+
+                    j++;
+                }
+            }
+        }
+
+        // Zatvori posljednji segment ako postoji
+        if (trenutniSegment.length > 0 && trenutnaScena !== '') {
+            let uloge = [];
+            trenutniSegment.forEach(ime => {
+                if (!uloge.includes(ime)) {
+                    uloge.push(ime);
+                }
+            });
+
+            if (uloge.length > 0) {
+                let segmentBroj = segmentBrojPoSceni[trenutnaScena] || 0;
+                segmentBroj++;
+                segmentBrojPoSceni[trenutnaScena] = segmentBroj;
+
+                rezultat.push({
+                    scena: trenutnaScena,
+                    segment: segmentBroj,
+                    uloge: uloge
+                });
+            }
+        }
+
+        return rezultat;
     };
 
     /**
