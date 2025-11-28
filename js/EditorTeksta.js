@@ -574,8 +574,48 @@ let EditorTeksta = function (divRef) {
      * Formatira selektovani tekst
      */
     let formatirajTekst = function (komanda) {
-        // Implementacija u sljedećem koraku
-        return false;
+        let selection = window.getSelection();
+
+        // Ako nema selekcije ili je prazna
+        if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+            return false;
+        }
+
+        let range = selection.getRangeAt(0);
+
+        // Provjeri da li je selekcija unutar editora
+        let commonAncestor = range.commonAncestorContainer;
+        let parentElement = commonAncestor.nodeType === Node.TEXT_NODE
+            ? commonAncestor.parentNode
+            : commonAncestor;
+
+        // Provjeri da li je parent unutar editorDiv-a
+        if (!editorDiv.contains(parentElement)) {
+            return false;
+        }
+
+        // Provjeri da li cijela selekcija je unutar editora
+        let startContainer = range.startContainer;
+        let endContainer = range.endContainer;
+
+        let startParent = startContainer.nodeType === Node.TEXT_NODE
+            ? startContainer.parentNode
+            : startContainer;
+        let endParent = endContainer.nodeType === Node.TEXT_NODE
+            ? endContainer.parentNode
+            : endContainer;
+
+        if (!editorDiv.contains(startParent) || !editorDiv.contains(endParent)) {
+            return false;
+        }
+
+        // Primijeni formatiranje koristeći execCommand
+        try {
+            let success = document.execCommand(komanda, false, null);
+            return success;
+        } catch (e) {
+            return false;
+        }
     };
 
     // Vraćamo javne metode
