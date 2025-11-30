@@ -24,17 +24,20 @@ let EditorTeksta = function (divRef) {
      * Parsira tekstualni sadržaj editora u linije
      */
     let dajLinije = function() {
-        let tekst = editorDiv.innerHTML;
-        let tempDiv = document.createElement('div');
-        tempDiv.innerHTML = tekst;
+        let html = editorDiv.innerHTML;
+
+        // Split po <br> tagovima
+        let linijeHTML = html.split(/<br\s*\/?>/gi);
 
         let linije = [];
-        let paragrafi = tempDiv.querySelectorAll('p');
+        linijeHTML.forEach(linijaHTML => {
+            let tempDiv = document.createElement('div');
+            tempDiv.innerHTML = linijaHTML.trim();
+            let cistTekst = dajCistiTekst(tempDiv).trim();
 
-        paragrafi.forEach(p => {
             linije.push({
-                element: p,
-                tekst: dajCistiTekst(p).trim()
+                element: tempDiv,
+                tekst: cistTekst
             });
         });
 
@@ -53,9 +56,14 @@ let EditorTeksta = function (divRef) {
         // Razdvoji na riječi
         let rijeci = tekst.trim().split(/\s+/);
 
-        // Filtriraj brojeve i prazne stringove
+        // Filtriraj brojeve, prazne stringove i samostalne znakove
         rijeci = rijeci.filter(rijec => {
-            return rijec.length > 0 && !/^\d+$/.test(rijec);
+            if (rijec.length === 0) return false;
+            // Filtriraj brojeve (uključujući i decimalne kao 45.6)
+            if (/^[\d.]+$/.test(rijec)) return false;
+            // Filtriraj samostalne znakove interpunkcije
+            if (/^[^\w\s'-]+$/.test(rijec)) return false;
+            return true;
         });
 
         return rijeci.length;
@@ -85,8 +93,8 @@ let EditorTeksta = function (divRef) {
     /**
      * Provjerava da li je linija ime uloge
      */
-    let jeLiImeUloge = function(tekst, sljedecaTekst) {
-        tekst = tekst.trim();
+    let jeLiImeUloge = function(linije, index) {
+        let tekst = linije[index].tekst.trim();
 
         // Mora biti velikim slovima
         if (tekst !== tekst.toUpperCase()) return false;
@@ -103,11 +111,28 @@ let EditorTeksta = function (divRef) {
         // Mora sadržavati barem jedno slovo
         if (!/[A-Z]/.test(tekst)) return false;
 
-        // Sljedeća linija mora postojati i biti običan govor
-        if (!sljedecaTekst || sljedecaTekst.trim() === '') return false;
-        if (sljedecaTekst.trim() === sljedecaTekst.trim().toUpperCase()) return false;
+        // Traži prvu nepraznu liniju koja nije u zagradama
+        let j = index + 1;
+        while (j < linije.length) {
+            let sljedecaTekst = linije[j].tekst.trim();
 
-        return true;
+            // Prazna linija prekida
+            if (sljedecaTekst === '') return false;
+
+            // Ako je velika slova (možda nova uloga ili scena), nije običan govor
+            if (sljedecaTekst === sljedecaTekst.toUpperCase()) return false;
+
+            // Ako nije u zagradama, to je običan govor!
+            if (!jeLiLinijaUZagradama(sljedecaTekst)) {
+                return true;
+            }
+
+            // Linija je u zagradama, nastavi dalje
+            j++;
+        }
+
+        // Nema običnog govora
+        return false;
     };
 
     /**
@@ -169,12 +194,19 @@ let EditorTeksta = function (divRef) {
                 if (child.nodeType === Node.TEXT_NODE) {
                     // Text node - izdvoji riječi
                     let tekst = child.textContent || '';
-                    let rijeci = tekst.trim().split(/\s+/);
 
-                    // Filtriraj riječi (bez brojeva, bez praznih)
+                    // Koristi istu logiku kao prebrojiRijeci
+                    let tekstZaBrojanje = tekst.replace(/[,.]/g, ' ');
+                    let rijeci = tekstZaBrojanje.trim().split(/\s+/);
+
+                    // Filtriraj riječi (bez brojeva, bez praznih, bez samostalnih znakova)
                     rijeci = rijeci.filter(rijec => {
-                        rijec = rijec.replace(/[,.]/g, '');
-                        return rijec.length > 0 && !/^\d+$/.test(rijec);
+                        if (rijec.length === 0) return false;
+                        // Filtriraj brojeve (uključujući i decimalne kao 45.6)
+                        if (/^[\d.]+$/.test(rijec)) return false;
+                        // Filtriraj samostalne znakove interpunkcije
+                        if (/^[^\w\s'-]+$/.test(rijec)) return false;
+                        return true;
                     });
 
                     let brojRijeci = rijeci.length;
@@ -228,11 +260,9 @@ let EditorTeksta = function (divRef) {
         let uloge = [];
 
         for (let i = 0; i < linije.length; i++) {
-            let trenutnaTekst = linije[i].tekst;
-            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
-
             // Provjeri da li je ovo ime uloge
-            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst)) {
+            if (jeLiImeUloge(linije, i)) {
+                let trenutnaTekst = linije[i].tekst;
                 // Dodaj ulogu ako već nije u nizu
                 if (!uloge.includes(trenutnaTekst)) {
                     uloge.push(trenutnaTekst);
@@ -252,10 +282,8 @@ let EditorTeksta = function (divRef) {
 
         // Prebroji sve uloge
         for (let i = 0; i < linije.length; i++) {
-            let trenutnaTekst = linije[i].tekst;
-            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
-
-            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst)) {
+            if (jeLiImeUloge(linije, i)) {
+                let trenutnaTekst = linije[i].tekst;
                 if (!mapa[trenutnaTekst]) {
                     mapa[trenutnaTekst] = 0;
                 }
@@ -306,10 +334,9 @@ let EditorTeksta = function (divRef) {
 
         for (let i = 0; i < linije.length; i++) {
             let trenutnaTekst = linije[i].tekst;
-            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
 
             // Provjeri da li je ovo tražena uloga
-            if (jeLiImeUloge(trenutnaTekst, sljedecaTekst) && trenutnaTekst === uloga) {
+            if (jeLiImeUloge(linije, i) && trenutnaTekst === uloga) {
                 // Prebroji linije govora nakon imena uloge
                 let j = i + 1;
                 while (j < linije.length) {
@@ -319,8 +346,7 @@ let EditorTeksta = function (divRef) {
                     if (linijaTekst === '') break;
 
                     // Nova uloga prekida blok
-                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
-                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ)) break;
+                    if (jeLiImeUloge(linije, j)) break;
 
                     // Naslov scene prekida blok
                     if (jeLiNaslovScene(linijaTekst)) break;
@@ -354,7 +380,6 @@ let EditorTeksta = function (divRef) {
         // Prvo prolazimo kroz sve linije i identifikujemo replike i granice
         for (let i = 0; i < linije.length; i++) {
             let tekst = linije[i].tekst;
-            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
 
             // Ako je naslov scene
             if (jeLiNaslovScene(tekst)) {
@@ -367,7 +392,7 @@ let EditorTeksta = function (divRef) {
             }
 
             // Ako je ime uloge
-            if (jeLiImeUloge(tekst, sljedecaTekst)) {
+            if (jeLiImeUloge(linije, i)) {
                 let imeUloge = tekst;
                 let linijeGovora = [];
 
@@ -378,8 +403,7 @@ let EditorTeksta = function (divRef) {
 
                     if (linijaTekst === '') break;
 
-                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
-                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ)) break;
+                    if (jeLiImeUloge(linije, j)) break;
                     if (jeLiNaslovScene(linijaTekst)) break;
 
                     linijeGovora.push(linijaTekst);
@@ -401,10 +425,9 @@ let EditorTeksta = function (divRef) {
 
                 if (nextIdx < linije.length) {
                     let sljedeciTekst = linije[nextIdx].tekst;
-                    let sljedeciSljedeci = (nextIdx + 1 < linije.length) ? linije[nextIdx + 1].tekst : '';
 
                     // Akcijski segment ili naslov scene prekidaju dijalog-segment
-                    if (!jeLiImeUloge(sljedeciTekst, sljedeciSljedeci) && sljedeciTekst !== '') {
+                    if (!jeLiImeUloge(linije, nextIdx) && sljedeciTekst !== '') {
                         segmentGranice.add(sveReplike.length);
                     }
                 }
@@ -462,9 +485,9 @@ let EditorTeksta = function (divRef) {
         let segmentBrojPoSceni = {};
         let trenutniSegment = [];
 
-        for (let i = 0; i < linije.length; i++) {
+        let i = 0;
+        while (i < linije.length) {
             let tekst = linije[i].tekst;
-            let sljedecaTekst = (i + 1 < linije.length) ? linije[i + 1].tekst : '';
 
             // Ako je naslov scene
             if (jeLiNaslovScene(tekst)) {
@@ -492,57 +515,66 @@ let EditorTeksta = function (divRef) {
 
                 trenutnaScena = tekst;
                 trenutniSegment = [];
+                i++;
+                continue;
+            }
+
+            // Ako je prazna linija, preskoči
+            if (tekst === '') {
+                i++;
                 continue;
             }
 
             // Ako je ime uloge
-            if (jeLiImeUloge(tekst, sljedecaTekst)) {
+            if (jeLiImeUloge(linije, i)) {
                 trenutniSegment.push(tekst);
 
-                // Provjeri da li slijedi akcijski segment
-                let j = i + 1;
-                while (j < linije.length) {
-                    let linijaTekst = linije[j].tekst;
+                // Preskoči linije govora te uloge
+                i++;
+                while (i < linije.length) {
+                    let linijaTekst = linije[i].tekst;
 
-                    if (linijaTekst === '') {
-                        j++;
-                        continue;
-                    }
+                    // Prazna linija prekida blok govora
+                    if (linijaTekst === '') break;
 
-                    let sljedecaNakonJ = (j + 1 < linije.length) ? linije[j + 1].tekst : '';
+                    // Nova uloga prekida blok
+                    if (jeLiImeUloge(linije, i)) break;
 
-                    // Ako je nova uloga ili naslov scene, nastavi dalje
-                    if (jeLiImeUloge(linijaTekst, sljedecaNakonJ) || jeLiNaslovScene(linijaTekst)) {
-                        break;
-                    }
+                    // Naslov scene prekida blok
+                    if (jeLiNaslovScene(linijaTekst)) break;
 
-                    // Ako nije uloga, nije naslov scene i nije prazan - to je akcijski segment
-                    // Zatvori segment
-                    let uloge = [];
-                    trenutniSegment.forEach(ime => {
-                        if (!uloge.includes(ime)) {
-                            uloge.push(ime);
-                        }
-                    });
-
-                    if (uloge.length > 0) {
-                        let segmentBroj = segmentBrojPoSceni[trenutnaScena] || 0;
-                        segmentBroj++;
-                        segmentBrojPoSceni[trenutnaScena] = segmentBroj;
-
-                        rezultat.push({
-                            scena: trenutnaScena,
-                            segment: segmentBroj,
-                            uloge: uloge
-                        });
-                    }
-
-                    trenutniSegment = [];
-                    break;
-
-                    j++;
+                    // Ovo je linija govora, preskoči je
+                    i++;
                 }
+                continue;
             }
+
+            // Ako nije scena, nije uloga i nije prazno - to je akcijski segment
+            // Zatvori trenutni segment
+            if (trenutniSegment.length > 0 && trenutnaScena !== '') {
+                let uloge = [];
+                trenutniSegment.forEach(ime => {
+                    if (!uloge.includes(ime)) {
+                        uloge.push(ime);
+                    }
+                });
+
+                if (uloge.length > 0) {
+                    let segmentBroj = segmentBrojPoSceni[trenutnaScena] || 0;
+                    segmentBroj++;
+                    segmentBrojPoSceni[trenutnaScena] = segmentBroj;
+
+                    rezultat.push({
+                        scena: trenutnaScena,
+                        segment: segmentBroj,
+                        uloge: uloge
+                    });
+                }
+
+                trenutniSegment = [];
+            }
+
+            i++;
         }
 
         // Zatvori posljednji segment ako postoji
@@ -574,6 +606,11 @@ let EditorTeksta = function (divRef) {
      * Formatira selektovani tekst
      */
     let formatirajTekst = function (komanda) {
+        // Validacija: dozvoljene su samo 'bold', 'italic' i 'underline' komande
+        if (komanda !== 'bold' && komanda !== 'italic' && komanda !== 'underline') {
+            return false;
+        }
+
         let selection = window.getSelection();
 
         // Ako nema selekcije ili je prazna
